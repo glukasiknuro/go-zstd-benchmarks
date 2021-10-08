@@ -23,7 +23,6 @@ import (
 
 	"github.com/andybalholm/brotli"
 	"github.com/biogo/hts/bgzf"
-	"github.com/dgryski/go-quicklz"
 	"github.com/golang/snappy"
 	flkp "github.com/klauspost/compress/flate"
 	gzkp "github.com/klauspost/compress/gzip"
@@ -509,10 +508,10 @@ func main() {
 		}(w)
 		w = sw
 		closers = append(closers, closeWrap{wg.Wait}.Close, pw.Close, sw.Close)
-	case "qlz":
-		qlw := quicklz.NewWriter(w, -wlevel)
-		closers = append(closers, qlw.Close)
-		w = qlw
+	//case "qlz":
+	//	qlw := quicklz.NewWriter(w, -wlevel)
+	//	closers = append(closers, qlw.Close)
+	//	w = qlw
 	default:
 		panic("write mode -w=x must be (raw|flatekp|flatestd|gzkp|pgzip|gzstd|none)")
 	}
