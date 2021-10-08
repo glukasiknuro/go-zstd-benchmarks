@@ -3,9 +3,9 @@ module klauspost-benchmark
 go 1.17
 
 require (
+	github.com/DataDog/zstd v1.4.8
 	github.com/andybalholm/brotli v1.0.3
 	github.com/biogo/hts v1.4.3
-	github.com/dgryski/go-quicklz v0.0.0-20151014073603-d7042a82d57e
 	github.com/golang/snappy v0.0.4
 	github.com/klauspost/compress v1.13.6
 	github.com/klauspost/dedup v1.1.0

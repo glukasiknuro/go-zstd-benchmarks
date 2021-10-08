@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"sync"
+	"syscall"
 	"time"
 
 	flstd "compress/flate"
@@ -38,7 +39,7 @@ import (
 	"github.com/pierrec/lz4"
 	"github.com/ulikunitz/xz/lzma"
 	zstd "github.com/valyala/gozstd"
-	//"github.com/DataDog/zstd"
+	dzstd "github.com/DataDog/zstd"
 	//"github.com/youtube/vitess/go/cgzip"
 )
 
@@ -117,6 +118,17 @@ func (w *wcounter) Write(p []byte) (n int, err error) {
 	w.n += n
 	return n, err
 
+}
+
+var globalStartTime = time.Now()
+func getCpuTime() time.Duration {
+	var rusage syscall.Rusage
+	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &rusage); err != nil {
+		panic(err)
+	}
+	sec := rusage.Utime.Sec
+	usec := rusage.Utime.Usec
+	return time.Duration(sec*1000000000 + usec*1000)
 }
 
 /*
@@ -279,6 +291,11 @@ func main() {
 		zr := zstd.NewReader(r)
 		//closers = append(closers, zr.Close)
 		r = zr
+	case "zskp":
+		r, err = zskp.NewReader(r)
+		//closers = append(closers, zr.Close)
+	case "dzstd":
+		r = dzstd.NewReader(r)
 	case "s2":
 		sr := s2.NewReader(r)
 		r = sr
@@ -484,6 +501,10 @@ func main() {
 		}
 		closers = append(closers, zw.Close)
 		w = zw
+	case "dzstd":
+		zw := dzstd.NewWriterLevel(w, wlevel)
+		closers = append(closers, zw.Close)
+		w = zw
 	case "s2zs":
 		pr, pw := io.Pipe()
 		var sw *s2.Writer
@@ -528,6 +549,7 @@ func main() {
 	}
 
 	inSize := int64(0)
+	startCpu := getCpuTime()
 	start := time.Now()
 
 	func() {
@@ -555,14 +577,16 @@ func main() {
 	}()
 	if stats {
 		elapsed := time.Since(start)
+		elapsedCpu := getCpuTime() - startCpu
 		wg.Wait()
 		if header {
-			fmt.Printf("file\tout\tlevel\tinsize\toutsize\tmillis\tmb/s\n")
+			fmt.Printf( "%20s %5s %5s %10s %10s %10s %8s %10s %8s\n", "file", "wmode", "level", "insize", "outsize", "millis", "mb/s", "ms_cpu", "cpu_mb/s")
 			//fmt.Printf("file\tin\tout\tlevel\tcpu\tinsize\toutsize\tmillis\tmb/s\n")
 		}
 		mbpersec := (float64(inSize) / (1024 * 1024)) / (float64(elapsed) / (float64(time.Second)))
+		cpuMbpersec := (float64(inSize) / (1024 * 1024)) / (float64(elapsedCpu) / (float64(time.Second)))
 		//fmt.Printf("%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%.02f\n", in, rmode, wmode, wlevel, cpu, inSize, outSize.n, elapsed/time.Millisecond, mbpersec)
-		fmt.Printf("%s\t%s\t%d\t%d\t%d\t%d\t%.02f\n", in, wmode, wlevel, inSize, outSize.n, elapsed/time.Millisecond, mbpersec)
+		fmt.Printf( "%20s %5s %5d %10d %10d %10d %8.2f %10d %8.2f\n", in, wmode, wlevel, inSize, outSize.n, elapsed/time.Millisecond, mbpersec, elapsedCpu / time.Millisecond, cpuMbpersec)
 	} else {
 		wg.Wait()
 	}
