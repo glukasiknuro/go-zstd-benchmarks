@@ -1,5 +1,8 @@
 ## Simple load test for https://github.com/buchgr/bazel-remote
 
+Benchmark first uploads a set of files to bazel-remote, and later in parallel downloads those files a number of times
+using `bytestream.ReadRequest` streaming gRPC.
+
 Dataset: http://sun.aei.polsl.pl/~sdeor/corpus/silesia.zip (uncompressed)
 
 Results on: Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz
