@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/genproto/googleapis/bytestream"
 	"io"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -18,12 +17,19 @@ var uploadTpl = flag.String("upload_template", "instance-name/uploads/{uuid}/blo
 
 func uploadFile(client bytestream.ByteStreamClient, path string, size int64, sha256 string) error {
 	f, err := os.Open(path)
+	defer f.Close()
+	if err != nil {
+		return err
+	}
 
+	return uploadFromReader(client, f, size, sha256)
+}
+
+func uploadFromReader(client bytestream.ByteStreamClient, f io.Reader, size int64, sha256 string) error {
 	uuid := uuid.New()
 	rn := strings.ReplaceAll(*uploadTpl, "{uuid}", uuid.String())
 	rn = strings.ReplaceAll(rn, "{sha256}", sha256)
 	rn = strings.ReplaceAll(rn, "{size}", strconv.FormatInt(size, 10))
-	log.Printf("Uploading file: %-40s  resource_name: %s", path, rn)
 
 	wc, err := client.Write(context.Background())
 	if err != nil {
@@ -66,4 +72,3 @@ func uploadFile(client bytestream.ByteStreamClient, path string, size int64, sha
 
 	return nil
 }
-
